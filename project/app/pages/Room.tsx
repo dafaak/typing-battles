@@ -14,10 +14,12 @@ interface RoomProps {
   room: string,
   userName: string,
   setModalOpen: (open: boolean) => void
+  showGame: boolean
 }
 
-export function Room({setSocket, formData,setModalOpen}: RoomProps) {
+export function Room({setSocket, formData, setModalOpen, showGame}: RoomProps) {
   const [players, setPlayers] = useState([]);
+  // const [showGame, setShowGame] = useState(false);
   const [player, setPlayer] = useState<IPlayer>({
     "conn_id": '',
     "name": '',
@@ -63,7 +65,6 @@ export function Room({setSocket, formData,setModalOpen}: RoomProps) {
   }
 
 
-
   const updateReady = (isReady: boolean) => {
     socket.send(JSON.stringify({event: 'update_user_state', is_ready: isReady}))
   }
@@ -81,7 +82,7 @@ export function Room({setSocket, formData,setModalOpen}: RoomProps) {
                  type="checkbox" checked={itemPlayer.is_ready}
                  onChange={() => handleIsPlayerReady(itemPlayer)}/></li>)} </ul></h3>
 
-
+        {showGame && <div>Game</div>}
       </>
 
   );

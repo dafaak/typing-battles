@@ -38,7 +38,7 @@ function App() {
   const handleTimeUp = () => {
     setModalOpen(false);
     setShowLoby(false);
-    setShowRoom(false);
+    // setShowRoom(false);
     setShowGame(true);
   }
 
@@ -47,8 +47,8 @@ function App() {
 
         {showLoby && <Loby setFormData={setFormData} formData={formData} joinRoom={joinRoom}/>}
         {showRoom && <Room formData={formData} setModalOpen={(open) => setModalOpen(open)}
-                           setSocket={(socket) => setSocket(socket)}/>}
-        {showGame && <div>Game</div>}
+                           setSocket={(socket) => setSocket(socket)} showGame={showGame}/>}
+
         {modalOpen &&
             createPortal(
                 <Modal
