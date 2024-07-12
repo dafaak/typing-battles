@@ -54,7 +54,7 @@ export default class Server implements Party.Server {
     }
 
     if (deserializedMessage.event === "update_user_state") {
-      console.log(`connection ${sender.id} sent message: ${deserializedMessage.message}`);
+      console.log(`connection ${sender.id} sent message: ${deserializedMessage}`);
       this.players.map((p) => {
         if (p.conn_id === sender.id) p.is_ready = deserializedMessage.is_ready;
       });
@@ -107,13 +107,15 @@ export default class Server implements Party.Server {
       }
 
       case "preparing": {
+        this.target_string = faker.word.words({count: 10});
         data.values = {
           party_state: this.party_state,
           timer: 5000,
+          target_string: this.target_string,
           players: this.players,
         }
         // setTimeout(() => {
-        //   this.target_string = faker.word.words({count: 10});
+        //
         //   this.mirror();
         //
         // }, 5000);
