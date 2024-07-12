@@ -60,6 +60,8 @@ export default class Server implements Party.Server {
       });
       const areAllPlayersReady = this.checkIfAllPlayersReady();
 
+      console.log({areAllPlayersReady});
+
       if (areAllPlayersReady) {
         this.party_state = "preparing";
 

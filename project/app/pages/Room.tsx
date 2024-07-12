@@ -3,8 +3,6 @@ import usePartySocket from "partysocket/react";
 import { useEffect, useState } from "react";
 import type { IPlayer } from "../interfaces/player.interface";
 import type { IMessage } from "../interfaces/message.interface";
-import { createPortal } from "react-dom";
-import { Modal } from "../components/Modal/Modal";
 
 
 interface RoomProps {
@@ -63,6 +61,8 @@ export function Room({setSocket, formData,setModalOpen}: RoomProps) {
     updateReady(!player.is_ready);
     setPlayer({...player, is_ready: !player.is_ready});
   }
+
+
 
   const updateReady = (isReady: boolean) => {
     socket.send(JSON.stringify({event: 'update_user_state', is_ready: isReady}))

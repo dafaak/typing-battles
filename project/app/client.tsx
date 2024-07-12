@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import PartySocket from "partysocket";
 import { createPortal } from "react-dom";
 import { Modal } from "./components/Modal/Modal";
+import { Timer } from "./components/Timer";
 
 function App() {
   const [showLoby, setShowLoby] = useState(true);
@@ -30,23 +31,34 @@ function App() {
     setModalOpen(false);
   };
 
+  const closeModal = () => {
+    setModalOpen(false);
+  }
+
+  const handleTimeUp = () => {
+    setModalOpen(false);
+    setShowLoby(false);
+    setShowRoom(false);
+    setShowGame(true);
+  }
+
   return (
       <main>
 
         {showLoby && <Loby setFormData={setFormData} formData={formData} joinRoom={joinRoom}/>}
         {showRoom && <Room formData={formData} setModalOpen={(open) => setModalOpen(open)}
                            setSocket={(socket) => setSocket(socket)}/>}
-        {/*{showGame && <div>Game</div>}*/}
+        {showGame && <div>Game</div>}
         {modalOpen &&
             createPortal(
                 <Modal
-                    closeModal={handleButtonClick}
+                    closeModal={closeModal}
                     onSubmit={handleButtonClick}
-                    onCancel={handleButtonClick}
+                    onCancel={closeModal}
                 >
                   <h2>Game starting in: </h2>
                   <br/>
-                  <p>This is the modal description</p>
+                  <Timer timeInSeconds={2} handleTimeUp={handleTimeUp}></Timer>
                 </Modal>,
                 document.body
             )}
