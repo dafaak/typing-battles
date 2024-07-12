@@ -77,10 +77,10 @@ export function Room({setSocket, formData, setModalOpen, showGame}: RoomProps) {
       <>
 
         <h1>Room {formData.room}</h1>
-        <h3>Players: <ul>{players.map(itemPlayer => <li key={itemPlayer.conn_id}>{itemPlayer.name} <label>Ready?</label>
+        {!showGame && <h3>Players: <ul>{players.map(itemPlayer => <li key={itemPlayer.conn_id}>{itemPlayer.name} <label>Ready?</label>
           <input disabled={itemPlayer.conn_id !== player.conn_id}
                  type="checkbox" checked={itemPlayer.is_ready}
-                 onChange={() => handleIsPlayerReady(itemPlayer)}/></li>)} </ul></h3>
+                 onChange={() => handleIsPlayerReady(itemPlayer)}/></li>)} </ul></h3>}
 
         {showGame && <div>Game</div>}
       </>
