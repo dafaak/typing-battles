@@ -16,8 +16,22 @@ interface JoinRoom {
   room: string
 }
 
+interface Party {
+  players: Player[]
+  state: "loby" | "running" | "ending" | "preparing"
+  targetString?: string
+  finished?: boolean
+}
+// todo eliminar partie cuando no hay miembros 
+// la key de la partie es la room 
+
+
+
+
+const parties: { [key: string]: Party } = {};
+
 class Server {
-  party_state: "lobby" | "running" | "ending" | "preparing" = "lobby";
+  party_state: "loby" | "running" | "ending" | "preparing" = "loby";
   players: Player[] = [];
   target_string = "";
   finished = false;
@@ -46,7 +60,7 @@ class Server {
     ws.send(JSON.stringify({ type: 'res_conn', values: { party_state: 'lobby', player } }));
     ws.on('message', (message) => this.onMessage(message.toString(), ws));
     ws.on('close', () => this.onClose(ws));
-    ws.on('join-room', (data) => this.onJoinRoom(ws,data));
+    ws.on('join-room', (data) => this.onJoinRoom(ws, data));
   }
 
 
@@ -54,14 +68,77 @@ class Server {
     const joinRoom = JSON.parse(data);
     ws.join(joinRoom.room);
     this.updatePlayer(ws.id, joinRoom);
+    this.joinPartie(joinRoom, ws.id);
     console.log(this.players);
+  }
+
+
+  findPlayerIndex(conn_id: string): number | undefined {
+    const indexFound = this.players.findIndex(player => player.conn_id === conn_id);
+    console.log('conn_id: ', indexFound)
+    return indexFound >= 0 ? indexFound : undefined;
+
+  }
+  findPlayerByCoonId(conn_id: string): Player | undefined {
+    const playerIndex = this.findPlayerIndex(conn_id);
+    if (playerIndex !== undefined)
+      return this.players[playerIndex]
+
+    return undefined
+  }
+
+  findPlayerInParty(room: string, conn_id: string): Player | undefined {
+
+    const party = this.findPartie(room);
+
+    if (!party) return undefined;
+
+    const indexFound = party.players.findIndex(player => player.conn_id === conn_id);
+
+    return indexFound >= 0 ? party.players[indexFound] : undefined;
+  }
+
+  findPartie(room: string): Party | undefined {
+    return parties[`room`] ? parties[`room`] : undefined;
+  }
+
+  joinPartie(joinRoom: JoinRoom, conn_id: string) {
+
+
+    const player = this.findPlayerByCoonId(conn_id);
+    console.log('player:', player);
+    if (player)
+      if (parties[joinRoom.room]) {
+
+        parties[joinRoom.room].players.push({ ...player })
+      } else {
+        parties[`${joinRoom.room}`] = {
+          players: [{ ...player }],
+          state: "loby"
+        }
+      }
+
+
+
+    //todo updatePlayers - mirror
+
+    console.log('parties: ', JSON.stringify(parties));
+
+
+
   }
 
   updatePlayer(conn_id: string, data: JoinRoom) {
     const indexFound = this.players.findIndex(player => player.conn_id === conn_id);
+    // console.log(data);
     if (indexFound >= 0) {
       this.players[indexFound] = { ...this.players[indexFound], ...data };
     }
+  }
+
+  updatePlayers(ws: Socket) {
+
+
   }
 
   onMessage(message: string, sender: Socket) {
@@ -91,7 +168,7 @@ class Server {
       if (areAllPlayersReady) {
         this.party_state = "preparing";
       } else {
-        this.party_state = "lobby";
+        this.party_state = "loby";
       }
     }
     console.log(this.players);
@@ -110,7 +187,7 @@ class Server {
   mirror(ws: Socket) {
     const data = { type: "mirror", values: {} };
     switch (this.party_state) {
-      case "lobby":
+      case "loby":
         data.values = {
           party_state: this.party_state,
           players: this.players,
