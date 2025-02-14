@@ -8,7 +8,13 @@ type Player = {
   name: string,
   score: number,
   is_ready: boolean,
+  room?: string,
 };
+
+interface JoinRoom {
+  name: string
+  room: string
+}
 
 class Server {
   party_state: "lobby" | "running" | "ending" | "preparing" = "lobby";
@@ -36,11 +42,26 @@ class Server {
       is_ready: false,
     };
     this.players.push(player);
-
+    console.log(this.players);
     ws.send(JSON.stringify({ type: 'res_conn', values: { party_state: 'lobby', player } }));
-
     ws.on('message', (message) => this.onMessage(message.toString(), ws));
     ws.on('close', () => this.onClose(ws));
+    ws.on('join-room', (data) => this.onJoinRoom(ws,data));
+  }
+
+
+  onJoinRoom(ws: Socket, data: string) {
+    const joinRoom = JSON.parse(data);
+    ws.join(joinRoom.room);
+    this.updatePlayer(ws.id, joinRoom);
+    console.log(this.players);
+  }
+
+  updatePlayer(conn_id: string, data: JoinRoom) {
+    const indexFound = this.players.findIndex(player => player.conn_id === conn_id);
+    if (indexFound >= 0) {
+      this.players[indexFound] = { ...this.players[indexFound], ...data };
+    }
   }
 
   onMessage(message: string, sender: Socket) {
@@ -48,7 +69,7 @@ class Server {
 
     if (deserializedMessage.event === "message") {
       console.log(`connection ${sender.id} sent message: ${deserializedMessage.message}`);
-      this.broadcast(deserializedMessage.message);
+      this.broadcast(deserializedMessage.message, sender);
     }
 
     if (deserializedMessage.event === "update_user_name") {
@@ -74,7 +95,7 @@ class Server {
       }
     }
     console.log(this.players);
-    this.mirror();
+    this.mirror(sender);
   }
 
   checkIfAllPlayersReady() {
@@ -83,10 +104,10 @@ class Server {
 
   onClose(connection: Socket) {
     this.players = this.players.filter((p) => p.conn_id !== connection.id);
-    this.mirror();
+    this.mirror(connection);
   }
 
-  mirror() {
+  mirror(ws: Socket) {
     const data = { type: "mirror", values: {} };
     switch (this.party_state) {
       case "lobby":
@@ -119,11 +140,11 @@ class Server {
         };
         break;
     }
-    this.broadcast(JSON.stringify(data));
+    this.broadcast(JSON.stringify(data), ws);
   }
 
-  broadcast(data: string) {
-    // ...existing code...
+  broadcast(data: string, ws: Socket) {
+    ws.send()
   }
 }
 
