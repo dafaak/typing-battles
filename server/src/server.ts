@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server as WS_Server, Socket } from 'socket.io';
 import { faker } from '@faker-js/faker';
+import { join } from 'path';
 
 type Player = {
   conn_id: string,
@@ -35,13 +36,14 @@ class Server {
   players: Player[] = [];
   target_string = "";
   finished = false;
+  io: WS_Server;
 
   constructor() {
     const app = express();
     const server = createServer(app);
-    const io = new WS_Server(server, { cors: { origin: "*" } });
+    this.io = new WS_Server(server, { cors: { origin: "*" } });
 
-    io.on('connection', (ws: Socket) => this.onConnect(ws));
+    this.io.on('connection', (ws: Socket) => this.onConnect(ws));
 
     server.listen(8080, () => {
       console.log('Server is listening on port 8080');
@@ -56,20 +58,44 @@ class Server {
       is_ready: false,
     };
     this.players.push(player);
-    console.log(this.players);
     ws.send(JSON.stringify({ type: 'res_conn', values: { party_state: 'lobby', player } }));
     ws.on('message', (message) => this.onMessage(message.toString(), ws));
     ws.on('close', () => this.onClose(ws));
     ws.on('join-room', (data) => this.onJoinRoom(ws, data));
+    ws.on('disconnect', () => this.onDisconnect(ws));
   }
 
+  onDisconnect(ws: Socket) {
+
+
+    const playerDisconected = this.findPlayerByCoonId(ws.id);
+    console.log('player disconnected: ', playerDisconected);
+
+    this.players = this.players.filter((p) => p.conn_id !== ws.id);
+
+    if (playerDisconected?.room) {
+      const updatedParty = this.leaveParty(playerDisconected.room, ws.id)
+      this.io.to(playerDisconected.room).emit('players-update', JSON.stringify(updatedParty));
+    };
+
+    this.updatePlayers(ws);
+
+  }
+
+  leaveParty(room: string, conn_id: string) {
+    parties[room].players = parties[room].players.filter((p) => p.conn_id !== conn_id);
+    return parties[room];
+  }
 
   onJoinRoom(ws: Socket, data: string) {
     const joinRoom = JSON.parse(data);
     ws.join(joinRoom.room);
     this.updatePlayer(ws.id, joinRoom);
-    this.joinPartie(joinRoom, ws.id);
-    console.log(this.players);
+    const party = this.joinPartie(joinRoom, ws.id);
+    // update players - loby 
+    if (party) this.io.to(joinRoom.room).emit('players-update', JSON.stringify(party))
+
+
   }
 
 
@@ -102,14 +128,15 @@ class Server {
     return parties[`room`] ? parties[`room`] : undefined;
   }
 
-  joinPartie(joinRoom: JoinRoom, conn_id: string) {
+
+
+  joinPartie(joinRoom: JoinRoom, conn_id: string): Party | undefined {
 
 
     const player = this.findPlayerByCoonId(conn_id);
     console.log('player:', player);
-    if (player)
+    if (player) {
       if (parties[joinRoom.room]) {
-
         parties[joinRoom.room].players.push({ ...player })
       } else {
         parties[`${joinRoom.room}`] = {
@@ -117,15 +144,12 @@ class Server {
           state: "loby"
         }
       }
-
-
-
-    //todo updatePlayers - mirror
+      return parties[`${joinRoom.room}`]
+    } else {
+      return undefined
+    }
 
     console.log('parties: ', JSON.stringify(parties));
-
-
-
   }
 
   updatePlayer(conn_id: string, data: JoinRoom) {
@@ -171,7 +195,7 @@ class Server {
         this.party_state = "loby";
       }
     }
-    console.log(this.players);
+
     this.mirror(sender);
   }
 
