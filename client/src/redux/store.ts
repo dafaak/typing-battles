@@ -1,10 +1,12 @@
-import { configureStore } from '@reduxjs/toolkit';
+import {configureStore} from '@reduxjs/toolkit';
 import playersReducer from './playersSlice';
+import playerDataReducer from './playerDataSlice';
 
 const store = configureStore({
-  reducer: {
-    players: playersReducer,
-  },
+    reducer: {
+        players: playersReducer,
+        playerData: playerDataReducer,
+    },
 });
 
 export type RootState = ReturnType<typeof store.getState>;
