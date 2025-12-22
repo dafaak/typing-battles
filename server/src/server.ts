@@ -18,9 +18,11 @@ interface JoinRoom {
 }
 
 interface Party {
+  name: string,
   players: Player[]
   state: "loby" | "running" | "ending" | "preparing"
   targetString?: string
+  timer?: number
   finished?: boolean
 }
 
@@ -74,7 +76,7 @@ class Server {
 
     if (playerDisconected?.room) {
       const updatedParty = this.leaveParty(playerDisconected.room, ws.id)
-      this.io.to(playerDisconected.room).emit('players-update', JSON.stringify(updatedParty));
+      this.io.to(playerDisconected.room).emit('game-update', JSON.stringify(updatedParty));
     }
     ;
 
@@ -94,7 +96,7 @@ class Server {
     const player = this.updatePlayer(ws.id, joinRoom);
     const party = this.joinPartie(joinRoom, ws.id);
     ws.emit('join-room-success', JSON.stringify(player));
-    if (party) this.io.to(joinRoom.room).emit('players-update', JSON.stringify(party))
+    if (party) this.io.to(joinRoom.room).emit('game-update', JSON.stringify(party))
 
 
   }
@@ -144,14 +146,16 @@ class Server {
         } else {
           parties[`${joinRoom.room}`] = {
             players: [{...player}],
-            state: "loby"
+            state: "loby",
+            name: joinRoom.room
           }
         }
 
       } else {
         parties[`${joinRoom.room}`] = {
           players: [{...player}],
-          state: "loby"
+          state: "loby",
+          name: joinRoom.room
         }
       }
       return parties[`${joinRoom.room}`]
@@ -179,6 +183,7 @@ class Server {
   onMessage(rawMessage: string, sender: Socket) {
     const deserializedMessage = JSON.parse(rawMessage);
     const {message} = deserializedMessage;
+
     if (deserializedMessage.event === "message") {
       console.log(`connection ${sender.id} sent message: ${deserializedMessage.message}`);
       this.broadcast(deserializedMessage.message, sender);
@@ -211,10 +216,15 @@ class Server {
       console.log({areAllPlayersReady});
 
       if (areAllPlayersReady) {
-        this.partie_state = "preparing";
+        parties[`${message.room}`].state = "preparing";
       } else {
-        this.partie_state = "loby";
+        parties[`${message.room}`].state = "loby";
       }
+    }
+
+    if (deserializedMessage.event === 'start-game') {
+      console.log(JSON.stringify(deserializedMessage))
+      parties[`${message.room}`].state = "running";
     }
 
     this.mirror({socket: sender, room: message.room, partie: parties[`${message.room}`]});
@@ -226,45 +236,39 @@ class Server {
 
   onClose(connection: Socket) {
     this.players = this.players.filter((p) => p.conn_id !== connection.id);
+    console.log(JSON.stringify(parties));
     // this.mirror(connection,);
   }
 
   mirror(params: { socket: Socket, room: string, partie: Party }) {
     const {socket, room, partie} = params;
-    const data = {type: "mirror", values: {}};
-    switch (this.partie_state) {
+
+
+    switch (partie.state) {
+
       case "loby":
-        data.values = {
-          partie_state: this.partie_state,
-          players: this.players,
-        };
+        // data.values = {
+        //   partie_state: this.partie_state,
+        //   players: this.players,
+        // };
         break;
-      case "preparing":
-        this.target_string = faker.word.words({count: 10});
-        data.values = {
-          partie_state: this.partie_state,
-          timer: 5000,
-          target_string: this.target_string,
-          players: this.players,
-        };
-        break;
+
       case "running":
-        data.values = {
-          partie_state: this.partie_state,
-          players: this.players,
-          target_string: this.target_string,
-          finished: this.finished,
-        };
+        this.target_string = faker.word.words({count: 10});
+        partie.targetString = this.target_string;
+        partie.timer = 30000;
         break;
+
       case "ending":
-        data.values = {
-          partie_state: this.partie_state,
-          players: this.players,
-        };
+        // data.values = {
+        //   partie_state: this.partie_state,
+        //   players: this.players,
+        // };
         break;
     }
-    this.io.to(room).emit('players-update', JSON.stringify(partie))
-    // this.broadcast(JSON.stringify(data), socket);
+    console.log(partie);
+    this.io.to(room).emit('game-update', JSON.stringify(partie))
+
   }
 
   broadcast(data: string, ws: Socket) {
