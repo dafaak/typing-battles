@@ -2,12 +2,14 @@ import { createSlice } from "@reduxjs/toolkit";
 
 interface PartieState {
   name?: string,
-  state?: 'loby' | 'running' | 'ending' | 'preparing'
+  state?: 'loby' | 'running' | 'ending' | 'preparing',
+  text?: string
 }
 
 const initialState: PartieState = {
   name: undefined,
   state: undefined,
+  text: undefined
 }
 
 const partieSlice = createSlice(
@@ -24,10 +26,13 @@ const partieSlice = createSlice(
         setPartie(state, action) {
           state.name = action.payload.name;
           state.state = action.payload.state;
+        },
+        setText(state, action) {
+          state.text = action.payload;
         }
       },
     }
 )
 
-export const {setPartieState, setPartieName, setPartie} = partieSlice.actions;
+export const {setPartieState, setPartieName, setText, setPartie} = partieSlice.actions;
 export default partieSlice.reducer;
