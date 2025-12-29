@@ -8,6 +8,7 @@ type Player = {
   conn_id: string,
   name: string,
   score: number,
+  place?: number,
   is_ready: boolean,
   room?: string,
 };
@@ -20,20 +21,17 @@ interface JoinRoom {
 interface Party {
   name: string,
   players: Player[]
-  state: "loby" | "running" | "ending" | "preparing"
+  state: "loby" | "ready" | "running" | "ending" | "preparing"
   targetString?: string
   timer?: number
   finished?: boolean
 }
 
-// todo eliminar partie cuando no hay miembros
-// la key de la partie es la room
-
 
 const parties: { [key: string]: Party } = {};
 
 class Server {
-  partie_state: "loby" | "running" | "ending" | "preparing" = "loby";
+  partie_state: "loby" | "ready" | "running" | "ending" | "preparing" = "loby";
   players: Player[] = [];
   target_string = "";
   finished = false;
@@ -77,8 +75,10 @@ class Server {
     if (playerDisconected?.room) {
       const updatedParty = this.leaveParty(playerDisconected.room, ws.id)
       this.io.to(playerDisconected.room).emit('game-update', JSON.stringify(updatedParty));
+      if (updatedParty.players.length === 0) {
+        delete parties[playerDisconected.room];
+      }
     }
-    ;
 
     this.updatePlayers(ws);
 
@@ -197,26 +197,30 @@ class Server {
       });
     }
 
-    if (deserializedMessage.event === "update_user_state") {
-      console.log('update_user_state')
-
-      console.log('mensaje:', message);
-      const playerFound = this.findPlayerInParty(message.room, message.conn_id)
-      console.log({playerFound});
+    if (deserializedMessage.event === "update_user_score") {
       console.log(parties);
-      console.log(parties[`${message.room}`].players);
 
-      parties[`${message.room}`].players = parties[`${message.room}`].players.map((p) => {
-        return p.conn_id === message.conn_id ? {...p, is_ready: message.is_ready} : {...p};
+      const playerFound = this.findPlayerInParty(message.room, message.conn_id)
+      console.log('update score', message);
+      if (!playerFound) return;
 
-      });
+      if (playerFound) playerFound.score = message.score;
+      if (playerFound.score === 100) this.setPlace(message.room, message.conn_id);
+
+    }
+
+    if (deserializedMessage.event === "update_user_state") {
+
+      const playerFound = this.findPlayerInParty(message.room, message.conn_id)
+
+      if (!playerFound) return;
+
+      if (playerFound) playerFound.is_ready = message.is_ready;
 
       const areAllPlayersReady = this.checkIfAllPlayersReady(parties[`${message.room}`].players);
-      console.log(parties[`${message.room}`].players);
-      console.log({areAllPlayersReady});
 
       if (areAllPlayersReady) {
-        parties[`${message.room}`].state = "preparing";
+        parties[`${message.room}`].state = "ready";
       } else {
         parties[`${message.room}`].state = "loby";
       }
@@ -230,6 +234,14 @@ class Server {
     this.mirror({socket: sender, room: message.room, partie: parties[`${message.room}`]});
   }
 
+  setPlace(room: string, conn_id:string) {
+    const places = parties[room].players.filter(player => player.place);
+    const place = places.length + 1;
+    parties[room].players.map(player => {
+      if (player.conn_id === conn_id) player.place = place;
+    });
+  }
+
   checkIfAllPlayersReady(players: Player[]): boolean {
     return players.every(player => player.is_ready);
   }
@@ -237,6 +249,7 @@ class Server {
   onClose(connection: Socket) {
     this.players = this.players.filter((p) => p.conn_id !== connection.id);
     console.log(JSON.stringify(parties));
+
     // this.mirror(connection,);
   }
 
@@ -253,8 +266,8 @@ class Server {
         // };
         break;
 
-      case "running":
-        this.target_string = faker.word.words({count: 10});
+      case "ready":
+        this.target_string = faker.word.words({count: 2});
         partie.targetString = this.target_string;
         partie.timer = 30000;
         break;
